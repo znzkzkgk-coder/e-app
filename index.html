@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0B0E16">
+<title>E. 씹기 분석</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gasoek+One&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 레이아웃: 가운데 폰 프레임 하나. 누운 E(아랫니)와 거울에 비친 E(윗니)가 앱 전체의 모티프 */
+:root{
+  --stage:#D3D9E4;
+  --bg:#EDF0F5;
+  --surface:#FFFFFF;
+  --ink:#131722;
+  --mute:#5E6779;
+  --line:#D9DEE8;
+  --accent:#2647F0;
+  --accent-soft:#E1E6FF;
+  --on-accent:#FFFFFF;
+  --good:#167F54; --good-soft:#DBF2E6;
+  --mid:#8A5F00;  --mid-soft:#FAEDC6;
+  --warn:#C63F27; --warn-soft:#FBE3DD;
+  --night:#0B0E16;
+  --night-ink:#F3F5FA;
+  --night-mute:#8E98AD;
+  --mirror:#7C93FF;
+  --rec:#F0553A;
+  --font-display:'Gasoek One','IBM Plex Sans KR',sans-serif;
+  --font-body:'IBM Plex Sans KR',system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --stage:#05070B;--bg:#0F131C;--surface:#181D29;--ink:#EEF1F7;--mute:#98A2B5;--line:#2A3142;
+  --accent:#7C93FF;--accent-soft:#222C55;--on-accent:#0A0F2E;
+  --good:#5AD19B;--good-soft:#153427;--mid:#F0C35A;--mid-soft:#3A2F12;--warn:#FF8A73;--warn-soft:#43201A;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --stage:#05070B;--bg:#0F131C;--surface:#181D29;--ink:#EEF1F7;--mute:#98A2B5;--line:#2A3142;
+  --accent:#7C93FF;--accent-soft:#222C55;--on-accent:#0A0F2E;
+  --good:#5AD19B;--good-soft:#153427;--mid:#F0C35A;--mid-soft:#3A2F12;--warn:#FF8A73;--warn-soft:#43201A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--stage);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;display:flex;align-items:center;justify-content:center}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,label.btn:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+
+.phone{position:relative;width:390px;height:min(820px,100%);background:var(--bg);border-radius:36px;overflow:hidden;box-shadow:0 24px 60px rgba(10,14,25,.3)}
+@media (max-width:430px){.phone{width:100%;height:100%;border-radius:0;box-shadow:none}}
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.on{display:flex}
+.scroll{flex:1;overflow-y:auto;padding:8px 16px 100px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.mute{color:var(--mute);font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+
+/* 스플래시 */
+#splash{background:var(--night);color:var(--night-ink);align-items:center;justify-content:center;gap:10px;cursor:pointer;z-index:20}
+#splash svg{width:300px;max-width:82%}
+.jaw-l{fill:var(--night-ink)}
+.jaw-u{fill:var(--mirror)}
+.dot{fill:var(--rec)}
+.mline{stroke:var(--mirror);stroke-width:1.5;stroke-dasharray:4 6;opacity:0}
+.fall{transform-origin:-30px 42px}
+.flip{opacity:0}
+.tag{opacity:0;font-size:15px;color:var(--night-mute);text-align:center}
+.tag b{display:block;font-family:var(--font-display);font-weight:400;font-size:34px;color:var(--night-ink);line-height:1.1}
+.tag b i{font-style:normal;color:var(--rec)}
+.hint{position:absolute;bottom:26px;font-size:13px;color:var(--night-mute)}
+.play .fall{animation:fall .75s .5s cubic-bezier(.55,0,.9,.5) forwards}
+.play .shift{animation:shift .75s .5s ease-in-out forwards}
+.play .hop{animation:hop .5s 1.4s cubic-bezier(.3,0,.6,1) forwards}
+.play .mline{animation:mline 1.5s 1.9s ease forwards}
+.play .flip{animation:flip .7s 2.1s cubic-bezier(.5,0,.3,1) forwards}
+.play .chew-l{animation:chewL .9s 3s ease-in-out}
+.play .chew-u{animation:chewU .9s 3s ease-in-out}
+.play .squash{animation:squash .9s 3s ease-in-out}
+.play .tag{animation:fadeup .5s 3.9s ease-out forwards}
+@keyframes fall{0%{transform:rotate(0)}70%{transform:rotate(-90deg)}84%{transform:rotate(-83deg)}100%{transform:rotate(-90deg)}}
+@keyframes shift{to{transform:translate(72px,32px)}}
+@keyframes hop{0%{transform:translate(0,0)}50%{transform:translate(-20px,-74px)}100%{transform:translate(-46px,-33px)}}
+@keyframes mline{0%{opacity:0}25%,70%{opacity:.9}100%{opacity:.25}}
+@keyframes flip{0%{opacity:0;transform:scaleY(1)}15%{opacity:1}100%{opacity:1;transform:scaleY(-1)}}
+@keyframes chewL{0%,50%,100%{transform:none}25%,75%{transform:translateY(-8px)}}
+@keyframes chewU{0%,50%,100%{transform:none}25%,75%{transform:translateY(8px)}}
+@keyframes squash{0%,50%,100%{transform:none}25%,75%{transform:scale(1.25,.6)}}
+@keyframes fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* 공통 */
+.top{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 6px}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:26px;line-height:1}
+.logo svg{width:30px;height:30px}
+.logo i{font-style:normal;color:var(--rec)}
+h1{font-family:var(--font-display);font-weight:400;font-size:25px;line-height:1.3;text-wrap:balance}
+h2{font-size:15px;font-weight:700}
+.card{background:var(--surface);border-radius:20px;padding:16px}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;border-radius:16px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:17px;cursor:pointer;text-align:center}
+.btn.quiet{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.stop{background:var(--rec);color:#fff}
+.btn.small{padding:12px;font-size:15px}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn .recdot{width:12px;height:12px;border-radius:50%;background:var(--rec);box-shadow:0 0 0 3px var(--on-accent)}
+label.btn{position:relative;overflow:hidden}
+.btn input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+.note{font-size:12px;color:var(--mute);text-align:center}
+.tabbar{position:absolute;left:0;right:0;bottom:0;display:flex;background:var(--surface);border-top:1px solid var(--line);padding:6px 8px 12px;z-index:5}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;font-size:12px;color:var(--mute);border-radius:12px}
+.tabbar svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button[aria-current="page"]{color:var(--accent);font-weight:700}
+
+.score{display:flex;align-items:flex-end;gap:10px}
+.score b{font-family:var(--font-display);font-weight:400;font-size:64px;line-height:.9}
+.score span{padding-bottom:6px}
+.teeth{display:flex;gap:5px}
+.teeth i{flex:1;height:26px;border-radius:5px 5px 10px 10px;background:var(--line)}
+.up{color:var(--good);font-weight:700}
+.down{color:var(--warn);font-weight:700}
+
+.week{display:flex;align-items:flex-end;gap:8px;height:96px}
+.week div{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:11px;color:var(--mute)}
+.week u{display:block;width:100%;min-height:3px;border-radius:6px 6px 3px 3px;background:var(--accent-soft);text-decoration:none}
+.week .today{color:var(--ink);font-weight:700}
+.week .today u{background:var(--accent)}
+.week .none u{background:var(--line)}
+
+.rec{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 0;border-top:1px solid var(--line)}
+.rec.first{border-top:0}
+.pill{flex:none;width:48px;text-align:center;padding:8px 0;border-radius:12px;font-family:var(--font-display);font-size:19px;line-height:1}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.mid{background:var(--mid-soft);color:var(--mid)}
+.pill.bad{background:var(--warn-soft);color:var(--warn)}
+.group{font-size:13px;font-weight:700;color:var(--mute);padding-top:10px}
+.seg{display:flex;background:var(--surface);border-radius:14px;padding:4px;gap:4px}
+.seg button{flex:1;padding:9px;border-radius:10px;font-weight:700;color:var(--mute)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.empty{text-align:center;padding:18px 8px;color:var(--mute)}
+.empty b{display:block;color:var(--ink);font-size:16px}
+
+/* 촬영 */
+#record{background:var(--night);color:var(--night-ink)}
+.cam{position:relative;flex:1;overflow:hidden;background:radial-gradient(110% 70% at 50% 35%,#1B2238,#0B0E16)}
+.cam canvas{position:absolute;inset:0;width:100%;height:100%}
+.cam video{position:absolute;width:2px;height:2px;opacity:0;pointer-events:none}
+.close{position:absolute;top:14px;left:14px;z-index:3;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;font-size:22px;line-height:1}
+.cam-msg{position:absolute;top:18px;left:64px;right:16px;font-size:14px;background:rgba(0,0,0,.55);padding:9px 12px;border-radius:12px}
+.timer{position:absolute;top:74px;left:0;right:0;display:none;justify-content:center;align-items:center;gap:8px;font-size:22px;font-weight:700;text-shadow:0 1px 6px #000}
+.timer::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--rec);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+.live .timer{display:flex}
+.counts{position:absolute;left:16px;right:16px;bottom:14px;display:none;background:rgba(0,0,0,.6);border-radius:16px;padding:10px 4px}
+.live .counts{display:flex}
+.counts div{flex:1;text-align:center;font-size:12px;color:var(--night-mute)}
+.counts b{display:block;font-size:24px;color:var(--night-ink);font-variant-numeric:tabular-nums;line-height:1.2}
+.counts .mid-c{border-left:1px dashed var(--mirror);border-right:1px dashed var(--mirror)}
+.prog{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.15)}
+.prog i{display:block;height:100%;width:0;background:var(--mirror)}
+.rec-bar{padding:14px 16px 18px;display:flex;flex-direction:column;gap:10px}
+.rec-bar p{font-size:13px;color:var(--night-mute);text-align:center}
+.rec-bar .btn.quiet{background:transparent;color:var(--night-ink);border-color:#3A4566}
+
+.over{position:absolute;inset:0;z-index:30;display:flex;background:rgba(5,8,14,.65)}
+.sheet{margin-top:auto;width:100%;background:var(--surface);color:var(--ink);border-radius:26px 26px 0 0;padding:24px 20px 26px;display:flex;flex-direction:column;gap:12px}
+#analyze{flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--night);color:var(--night-ink);text-align:center;padding:24px}
+#analyze svg{width:120px}
+#analyze .chew-l{animation:chewL .7s infinite ease-in-out}
+#analyze .chew-u{animation:chewU .7s infinite ease-in-out}
+#analyze .squash{animation:squash .7s infinite ease-in-out}
+
+/* 결과 */
+.metric{display:flex;flex-direction:column;gap:6px;padding:14px 0;border-top:1px solid var(--line)}
+.metric.first{border-top:0;padding-top:0}
+.metric.last{padding-bottom:0}
+.metric .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.metric .v small{font-size:13px;font-weight:400;color:var(--mute)}
+.rhythm{display:flex;align-items:flex-end;gap:3px;height:54px}
+.rhythm i{flex:1;min-height:2px;max-width:26px;background:var(--accent);border-radius:3px 3px 1px 1px;opacity:.85}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--mute)}
+.mirror-bar{display:flex;align-items:center;height:22px}
+.mirror-bar .half{flex:1;display:flex;height:100%}
+.mirror-bar .half.l{justify-content:flex-end}
+.mirror-bar i{background:var(--accent);min-width:2px}
+.mirror-bar .l i{border-radius:8px 0 0 8px}
+.mirror-bar .r i{border-radius:0 8px 8px 0}
+.mirror-bar .axisline{width:2px;height:34px;background:var(--ink);flex:none}
+.parts{display:flex;flex-direction:column;gap:8px}
+.parts div{display:flex;justify-content:space-between;font-size:14px}
+.tip{padding:12px 14px;border-radius:14px}
+.tip strong{display:block;color:var(--ink)}
+.tip span{font-size:13px}
+.tip.g{background:var(--good-soft);color:var(--good)}
+.tip.b{background:var(--warn-soft);color:var(--warn)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important}}
+</style>
+
+</head>
+<body>
+<main class="phone">
+
+  <section class="screen on" id="splash" aria-label="시작 화면">
+    <svg viewBox="-150 -100 300 200" role="img" aria-label="E.가 옆으로 눕고, 거울에 비친 E와 위아래 이가 되어 점을 씹는 로고">
+      <defs>
+        <g id="jaw">
+          <rect x="-42" y="58" width="84" height="16" rx="4"/>
+          <rect x="-42" y="14" width="16" height="60" rx="4"/>
+          <rect x="-8" y="14" width="16" height="60" rx="4"/>
+          <rect x="26" y="14" width="16" height="60" rx="4"/>
+        </g>
+      </defs>
+      <line class="mline" x1="-110" y1="0" x2="110" y2="0"/>
+      <g class="chew-u"><g class="flip jaw-u"><use href="#jaw"/></g></g>
+      <g class="chew-l"><g class="shift"><g class="fall jaw-l">
+        <rect x="-30" y="-42" width="16" height="84" rx="4"/>
+        <rect x="-30" y="-42" width="60" height="16" rx="4"/>
+        <rect x="-30" y="-8" width="60" height="16" rx="4"/>
+        <rect x="-30" y="26" width="60" height="16" rx="4"/>
+      </g></g></g>
+      <g class="squash"><g class="hop"><circle class="dot" cx="46" cy="33" r="9"/></g></g>
+    </svg>
+    <p class="tag"><b>E<i>.</i></b>씹는 습관을 비춰 보는 거울</p>
+    <span class="hint">화면을 누르면 시작해요</span>
+  </section>
+
+  <section class="screen" id="home" aria-label="홈">
+    <div class="top">
+      <button class="logo" data-go="splash" aria-label="시작 애니메이션 다시 보기">
+        <svg viewBox="-46 -78 92 156" aria-hidden="true"><g fill="var(--accent)" transform="scale(1,-1)"><use href="#jaw"/></g><g fill="var(--ink)"><use href="#jaw"/></g><circle r="9" fill="var(--rec)"/></svg>
+        <span>E<i>.</i></span>
+      </button>
+    </div>
+    <div class="scroll"><div class="stack">
+      <div>
+        <p class="mute" id="today"></p>
+        <h1>오늘은 몇 번이나<br>꼭꼭 씹었을까요?</h1>
+      </div>
+      <div class="card stack" id="scoreCard"></div>
+      <button class="btn" data-go="record"><span class="recdot"></span>영상촬영</button>
+      <div class="card stack">
+        <div class="row between"><h2>최근 7일 점수</h2><span class="mute">하루 평균</span></div>
+        <div class="week" id="week"></div>
+      </div>
+      <div class="card">
+        <div class="row between"><h2>촬영기록</h2><button class="mute" data-go="history"><u>모두 보기</u></button></div>
+        <div id="recent"></div>
+      </div>
+      <p class="note">기록은 이 기기의 이 브라우저에만 저장돼요. 영상은 저장하지 않아요.</p>
+    </div></div>
+  </section>
+
+  <section class="screen" id="history" aria-label="촬영기록">
+    <div class="top"><button class="logo" data-go="home"><span>E<i>.</i></span></button></div>
+    <div class="scroll"><div class="stack">
+      <h1>촬영기록과 나의 점수</h1>
+      <div class="seg" role="group" aria-label="보기 방식">
+        <button id="byDate" aria-pressed="true">날짜별</button>
+        <button id="byTime" aria-pressed="false">시간대별</button>
+      </div>
+      <div class="card" id="list"></div>
+    </div></div>
+  </section>
+
+  <section class="screen" id="record" aria-label="영상촬영">
+    <button class="close" data-go="home" aria-label="닫기">×</button>
+    <div class="cam" id="cam">
+      <video id="video" playsinline muted></video>
+      <canvas id="view"></canvas>
+      <div class="cam-msg" id="camMsg" role="status">준비하고 있어요</div>
+      <div class="timer num" id="timer">00:00</div>
+      <div class="counts">
+        <div><b id="cL">0</b>왼쪽</div>
+        <div class="mid-c"><b id="cN">0</b>씹은 횟수</div>
+        <div><b id="cR">0</b>오른쪽</div>
+      </div>
+      <div class="prog" id="prog" hidden><i></i></div>
+    </div>
+    <div class="rec-bar">
+      <p id="recHelp">휴대폰을 세워 두고, 턱까지 화면에 보이게 해 주세요.</p>
+      <button class="btn" id="recBtn" disabled hidden>촬영 시작</button>
+      <label class="btn" id="shootLabel">카메라로 식사 영상 찍기<input type="file" id="shoot" accept="video/*" capture="user"></label>
+      <label class="btn quiet small" id="pickLabel">찍어 둔 영상 고르기<input type="file" id="pick" accept="video/*"></label>
+    </div>
+  </section>
+
+  <section class="screen" id="result" aria-label="분석 결과">
+    <div class="top"><button class="logo" data-go="home"><span>E<i>.</i></span></button></div>
+    <div class="scroll"><div class="stack" id="resultBody"></div></div>
+  </section>
+
+  <nav class="tabbar" id="tabbar" aria-label="메뉴" hidden>
+    <button data-go="home"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>홈</button>
+    <button data-go="record"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>영상촬영</button>
+    <button data-go="history"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>촬영기록</button>
+  </nav>
+
+  <div class="over" id="perm" role="dialog" aria-modal="true" aria-labelledby="permT" hidden>
+    <div class="sheet">
+      <h1 id="permT">카메라를 켜도 될까요?</h1>
+      <p>식사하는 모습을 보고 씹는 횟수를 세려면 앞쪽 카메라가 필요해요.</p>
+      <p class="mute">영상은 이 휴대폰 안에서만 분석해요. 저장하지도, 밖으로 보내지도 않아요.</p>
+      <button class="btn" id="permOk">카메라 켜기</button>
+      <button class="btn quiet" id="permNo">나중에 할게요</button>
+    </div>
+  </div>
+
+  <div class="over" id="analyze" role="status" hidden>
+    <svg viewBox="-50 -84 100 168" aria-hidden="true">
+      <g class="chew-u"><g fill="var(--mirror)" transform="scale(1,-1)"><use href="#jaw"/></g></g>
+      <g class="chew-l" fill="var(--night-ink)"><use href="#jaw"/></g>
+      <g class="squash"><circle r="9" fill="var(--rec)"/></g>
+    </svg>
+    <p id="analyzeMsg">얼굴 인식 도구를 불러오고 있어요</p>
+  </div>
+</main>
+
+<script src="./chew.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)};
+  var ids=['splash','home','history','record','result'];
+  var KEY='e-chew-records-v1';
+  var DAYS=['일','월','화','수','목','금','토'];
+
+  /* ── 저장 ── */
+  var records=[];
+  try{records=JSON.parse(localStorage.getItem(KEY)||'[]')||[]}catch(e){records=[]}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(records))}catch(e){}}
+
+  /* ── 표시 도우미 ── */
+  function two(v){return (v<10?'0':'')+v}
+  function fmtDate(ts){var d=new Date(ts);return (d.getMonth()+1)+'월 '+d.getDate()+'일 ('+DAYS[d.getDay()]+')'}
+  function fmtTime(ts){var d=new Date(ts),h=d.getHours();return (h<12?'오전 ':'오후 ')+((h%12)||12)+':'+two(d.getMinutes())}
+  function fmtDur(s){var m=Math.floor(s/60);return m?m+'분 '+(s%60)+'초':s+'초'}
+  function dayKey(ts){var d=new Date(ts);return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate()}
+  function meal(ts){var h=new Date(ts).getHours();return h>=5&&h<11?'아침':h>=11&&h<16?'점심':h>=16&&h<22?'저녁':'야식'}
+  function grade(s){return s>=75?'good':s>=60?'mid':'bad'}
+  function avg(a){return a.length?a.reduce(function(p,q){return p+q},0)/a.length:0}
+  function teeth(score){
+    var h='';
+    for(var i=0;i<10;i++){var f=Math.max(0,Math.min(1,(score-i*10)/10))*100;
+      h+='<i style="background:linear-gradient(90deg,var(--accent) '+f+'%,var(--line) '+f+'%)"></i>'}
+    return '<div class="teeth" role="img" aria-label="100점 만점에 '+score+'점">'+h+'</div>';
+  }
+  function row(r,first){
+    return '<button class="rec'+(first?' first':'')+'" data-open="'+r.id+'"><span class="pill num '+grade(r.score)+'">'+r.score+'</span>'+
+      '<span class="grow"><b>'+meal(r.start)+' 식사</b><br><span class="mute">'+fmtDate(r.start)+' '+fmtTime(r.start)+' · '+r.chews+'번 씹음</span></span><span class="mute">›</span></button>';
+  }
+  var EMPTY='<div class="empty"><b>아직 기록이 없어요</b>영상촬영을 누르고 식사하는 모습을 찍어 보세요.</div>';
+
+  /* ── 화면 전환 ── */
+  function go(id){
+    if(id!=='record')stopCamera();
+    ids.forEach(function(s){$('#'+s).classList.toggle('on',s===id)});
+    $('#tabbar').hidden=!(id==='home'||id==='history');
+    document.querySelectorAll('#tabbar button').forEach(function(b){
+      if(b.dataset.go===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
+    });
+    if(id==='splash')play();
+    if(id==='home')renderHome();
+    if(id==='history')renderList();
+    if(id==='record')enterRecord();
+    var sc=$('#'+id+' .scroll');if(sc)sc.scrollTop=0;
+  }
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('[data-go]');if(t){e.stopPropagation();go(t.dataset.go);return}
+    var o=e.target.closest('[data-open]');if(o){showResult(o.dataset.open)}
+  });
+  var st;
+  function play(){
+    var sp=$('#splash');sp.classList.remove('play');void sp.getBoundingClientRect();sp.classList.add('play');
+    clearTimeout(st);st=setTimeout(function(){if(sp.classList.contains('on'))go('home')},6000);
+  }
+  $('#splash').addEventListener('click',function(){clearTimeout(st);go('home')});
+  play();
+
+  /* ── 홈 ── */
+  function renderHome(){
+    var now=Date.now(),D=86400000;
+    $('#today').textContent=fmtDate(now).replace('(','').replace(')','요일');
+    var last7=records.filter(function(r){return now-r.start<7*D});
+    var prev7=records.filter(function(r){return now-r.start>=7*D&&now-r.start<14*D});
+    var card=$('#scoreCard');
+    if(!records.length){
+      card.innerHTML='<div class="score"><b class="num">0</b><span class="mute">점 · 나의 점수</span></div>'+teeth(0)+
+        '<p class="mute">첫 식사를 촬영하면 점수가 채워져요. 이 하나가 10점이에요.</p>';
+    }else{
+      var base=last7.length?last7:records.slice(0,1);
+      var s=Math.round(avg(base.map(function(r){return r.score})));
+      var delta='';
+      if(last7.length&&prev7.length){var d=s-Math.round(avg(prev7.map(function(r){return r.score})));
+        delta=d>0?'<span class="up">▲ '+d+'점</span>':d<0?'<span class="down">▼ '+(-d)+'점</span>':''}
+      card.innerHTML='<div class="row between"><div class="score"><b class="num">'+s+'</b><span class="mute">점 · 나의 점수<br>'+
+        (last7.length?'최근 7일 평균 · 식사 '+last7.length+'번':'가장 최근 식사')+'</span></div>'+delta+'</div>'+teeth(s)+
+        '<p class="mute">이 하나가 10점이에요.</p>';
+    }
+    var h='';
+    for(var i=6;i>=0;i--){
+      var day=new Date(now-i*D),k=dayKey(day.getTime());
+      var l=records.filter(function(r){return dayKey(r.start)===k}).map(function(r){return r.score});
+      var v=l.length?Math.round(avg(l)):null;
+      h+='<div class="'+(i===0?'today':'')+(v===null?' none':'')+'"><span class="num">'+(v===null?'':v)+'</span><u style="height:'+(v===null?0:Math.round(v*0.7))+'%"></u>'+DAYS[day.getDay()]+'</div>';
+    }
+    $('#week').innerHTML=h;
+    $('#recent').innerHTML=records.length?records.slice(0,3).map(function(r,i){return row(r,i===0)}).join(''):EMPTY;
+  }
+
+  /* ── 촬영기록 ── */
+  var mode='date';
+  function renderList(){
+    var h='';
+    if(!records.length)h=EMPTY;
+    else if(mode==='date'){
+      var last='';
+      records.forEach(function(r){var k=fmtDate(r.start),f=k!==last;
+        if(f){var same=records.filter(function(q){return fmtDate(q.start)===k});
+          h+='<p class="group">'+k+' · 평균 '+Math.round(avg(same.map(function(q){return q.score})))+'점</p>';last=k}
+        h+=row(r,f)});
+    }else{
+      ['아침','점심','저녁','야식'].forEach(function(m){
+        var l=records.filter(function(r){return meal(r.start)===m});if(!l.length)return;
+        h+='<p class="group">'+m+' · 평균 '+Math.round(avg(l.map(function(r){return r.score})))+'점 · '+l.length+'번</p>'+l.map(function(r,i){return row(r,i===0)}).join('');
+      });
+    }
+    $('#list').innerHTML=h;
+    $('#byDate').setAttribute('aria-pressed',mode==='date');
+    $('#byTime').setAttribute('aria-pressed',mode==='time');
+  }
+  $('#byDate').onclick=function(){mode='date';renderList()};
+  $('#byTime').onclick=function(){mode='time';renderList()};
+
+  /* ── 결과 ── */
+  function showResult(id){
+    var r=records.filter(function(q){return q.id===id})[0];if(!r)return;
+    var sc=chewScore(r),sided=r.L+r.R,h='';
+    var lp=sided?Math.round(r.L/sided*100):50,rp=100-lp;
+    h+='<div><p class="mute">'+fmtDate(r.start)+' · '+fmtTime(r.start)+' 시작 · '+fmtTime(r.end)+' 종료</p><h1>이번 식사의 씹기 점수</h1></div>';
+    h+='<div class="card stack"><div class="score"><b class="num">'+r.score+'</b><span class="mute">점 / 100점</span></div>'+teeth(r.score)+
+      '<div class="parts">'+sc.parts.map(function(p){return '<div><span>'+p.label+'</span><b class="num">'+p.pts+' / '+p.max+'</b></div>'}).join('')+'</div>'+
+      (r.durSec<180?'<p class="mute">3분보다 짧은 영상이라 식사 시간 점수는 뺐어요.</p>':'')+'</div>';
+    h+='<div class="card">';
+    h+='<div class="metric first"><h2>씹은 횟수</h2><p class="v">'+r.chews.toLocaleString()+'번 <small>'+(r.bites?'한 입 평균 '+r.avgPerBite+'번 · '+r.bites+'입':'')+'</small></p>'+
+      '<p class="mute">2초 넘게 쉬면 다음 한 입으로 셌어요. 한 입에 20~30번 씹는 것을 권해요.</p></div>';
+    var mx=Math.max.apply(null,r.perMin.concat([1]));
+    h+='<div class="metric"><h2>식사 속도</h2><p class="v">'+fmtDur(r.durSec)+' <small>'+(r.tempo?'씹을 때 1분에 '+r.tempo+'번 빠르기':'')+'</small></p>'+
+      '<div class="rhythm" role="img" aria-label="1분마다 씹은 횟수">'+r.perMin.map(function(v){return '<i style="height:'+Math.round(v/mx*100)+'%" title="'+v+'번"></i>'}).join('')+'</div>'+
+      '<div class="axis"><span>시작</span><span>가장 많을 때 1분에 '+mx+'번</span><span>끝</span></div>'+
+      '<p class="mute">막대 하나가 1분이에요. 식사는 15분 넘게, 천천히 씹는 것이 좋아요.</p></div>';
+    h+='<div class="metric last"><h2>좌우 균형</h2>';
+    if(sided>=10){
+      h+='<div class="row between"><span class="v">왼쪽 '+lp+'%</span><span class="v">오른쪽 '+rp+'%</span></div>'+
+        '<div class="mirror-bar" role="img" aria-label="왼쪽 '+lp+'퍼센트, 오른쪽 '+rp+'퍼센트"><div class="half l"><i style="width:'+lp+'%"></i></div><span class="axisline"></span><div class="half r"><i style="width:'+rp+'%"></i></div></div>'+
+        '<p class="mute">가운데 선이 거울이에요. 턱이 어느 쪽으로 쏠리는지 보고 추정한 값이에요. 양쪽 길이가 같을수록 고르게 씹은 거예요.</p>';
+    }else h+='<p class="mute">턱이 한쪽으로 쏠린 움직임이 적어서 좌우를 가리기 어려웠어요. 얼굴을 정면으로 두고 조금 더 길게 찍어 보세요.</p>';
+    h+='</div></div>';
+    var good=[],bad=[];
+    sc.parts.forEach(function(p){var q=p.pts/p.max;
+      if(p.key==='bite'){if(q>=.8)good.push(['한 입을 충분히 씹었어요','한 입에 평균 '+r.avgPerBite+'번 씹었어요.']);else bad.push(['한 입을 더 오래 씹어 보세요','지금은 평균 '+r.avgPerBite+'번이에요. 20번을 목표로 해 보세요.'])}
+      if(p.key==='tempo'){if(q>=.8)good.push(['차분한 빠르기로 씹었어요','1분에 '+r.tempo+'번 빠르기였어요.']);else if(q<.5)bad.push(['씹는 속도가 빨라요','1분에 '+r.tempo+'번 빠르기예요. 한 번씩 천천히 눌러 씹어 보세요.'])}
+      if(p.key==='time'){if(q>=1)good.push(['여유 있게 식사했어요',fmtDur(r.durSec)+' 동안 먹었어요.']);else if(q<.7)bad.push(['식사가 빨리 끝났어요',fmtDur(r.durSec)+' 걸렸어요. 15분을 넘겨 보세요.'])}
+      if(p.key==='side'){if(q>=.75)good.push(['양쪽으로 고르게 씹었어요','왼쪽 '+lp+'%, 오른쪽 '+rp+'%였어요.']);else if(q<.5)bad.push([(lp>rp?'왼쪽':'오른쪽')+'으로만 씹는 편이에요','다음 식사에는 '+(lp>rp?'오른쪽':'왼쪽')+' 어금니로 옮겨 씹어 보세요.'])}
+      if(p.key==='lip'){if(q>=.85)good.push(['입을 다물고 씹었어요','씹은 횟수의 '+Math.round(q*100)+'%를 입을 닫고 씹었어요.']);else if(q<.6)bad.push(['입을 벌리고 씹을 때가 많아요',Math.round((1-q)*100)+'%는 입이 벌어져 있었어요.'])}
+    });
+    if(!r.chews)bad.push(['씹는 움직임을 찾지 못했어요','얼굴이 밝게, 턱까지 화면에 들어오게 찍어 보세요.']);
+    if(good.length)h+='<h2>좋은 습관</h2>'+good.map(function(t){return '<div class="tip g"><strong>'+t[0]+'</strong><span>'+t[1]+'</span></div>'}).join('');
+    if(bad.length)h+='<h2>고치면 좋은 습관</h2>'+bad.map(function(t){return '<div class="tip b"><strong>'+t[0]+'</strong><span>'+t[1]+'</span></div>'}).join('');
+    h+='<button class="btn" data-go="home">홈으로</button><button class="btn quiet small" id="del">이 기록 지우기</button>';
+    $('#resultBody').innerHTML=h;
+    var del=$('#del'),armed=false;
+    del.onclick=function(){
+      if(!armed){armed=true;del.textContent='한 번 더 누르면 지워져요';return}
+      records=records.filter(function(q){return q.id!==id});save();go('history');
+    };
+    ids.forEach(function(s){$('#'+s).classList.toggle('on',s==='result')});
+    $('#tabbar').hidden=true;$('#result .scroll').scrollTop=0;
+  }
+  function finish(startTs,endTs,durSec){
+    var r=A.result(durSec);
+    r.id='r'+Date.now();r.start=startTs;r.end=endTs;r.score=chewScore(r).total;
+    records.unshift(r);records.sort(function(a,b){return b.start-a.start});save();
+    stopCamera();showResult(r.id);
+  }
+
+  /* ── 얼굴 인식 ── */
+  var video=$('#video'),canvas=$('#view'),ctx=canvas.getContext('2d');
+  var A=new ChewAnalyzer(),FL=null,loading=null;
+  var S={mode:null,stream:null,live:false,raf:0,t0:0,startTs:0,tsLast:0,face:false,pulse:0,file:null,url:null,wake:null};
+  var OVAL=[234,93,132,58,172,136,150,149,176,148,152,377,400,378,379,365,397,288,361,323,454];
+
+  function loadModel(){
+    if(FL)return Promise.resolve(FL);
+    if(loading)return loading;
+    var base=new URL('./vendor/',document.baseURI).href;
+    loading=import(base+'vision_bundle.mjs').then(function(m){
+      return m.FilesetResolver.forVisionTasks(base+'wasm').then(function(fs){
+        return m.FaceLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:base+'face_model.wasm',delegate:'CPU'},runningMode:'VIDEO',numFaces:1});
+      });
+    }).then(function(l){FL=l;return l},function(e){loading=null;throw e});
+    return loading;
+  }
+  function cameraAllowed(){
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return false;
+    try{var fp=document.featurePolicy||document.permissionsPolicy;if(fp&&fp.allowsFeature&&!fp.allowsFeature('camera'))return false}catch(e){}
+    return true;
+  }
+  function msg(t){$('#camMsg').textContent=t}
+  function fit(){
+    var r=canvas.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);
+    var w=Math.round(r.width*d),h=Math.round(r.height*d);
+    if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
+  }
+  function drawGuide(ok){
+    var w=canvas.width,h=canvas.height;
+    ctx.save();ctx.lineWidth=Math.max(2,w/160);ctx.setLineDash([w/30,w/42]);
+    ctx.strokeStyle=ok?'rgba(124,147,255,.95)':'rgba(243,245,250,.85)';
+    ctx.beginPath();ctx.ellipse(w/2,h*0.46,w*0.31,Math.min(h*0.3,w*0.42),0,0,Math.PI*2);ctx.stroke();ctx.restore();
+  }
+  function frame(tsVideo){
+    fit();
+    var w=canvas.width,h=canvas.height,vw=video.videoWidth,vh=video.videoHeight;
+    ctx.clearRect(0,0,w,h);
+    if(!vw){drawGuide(false);return}
+    var sc=Math.max(w/vw,h/vh),dw=vw*sc,dh=vh*sc,ox=(w-dw)/2,oy=(h-dh)/2,mirror=S.mode==='live';
+    ctx.save();
+    if(mirror){ctx.translate(w,0);ctx.scale(-1,1)}
+    ctx.drawImage(video,ox,oy,dw,dh);
+    var res=null,now=performance.now();
+    if(FL&&now>S.tsLast){S.tsLast=now;try{res=FL.detectForVideo(video,now)}catch(e){res=null}}
+    var lm=res&&res.faceLandmarks&&res.faceLandmarks[0];
+    S.face=!!lm;
+    if(lm){
+      var P=function(i){return {x:lm[i].x*vw,y:lm[i].y*vh}};
+      var eR=P(33),eL=P(263),mid=P(168),chin=P(152),u1=P(13),u2=P(14);
+      var iod=Math.hypot(eL.x-eR.x,eL.y-eR.y)||1,ux=(eL.x-eR.x)/iod,uy=(eL.y-eR.y)/iod;
+      var open=Math.hypot(chin.x-mid.x,chin.y-mid.y)/iod;
+      var lat=((chin.x-mid.x)*ux+(chin.y-mid.y)*uy)/iod;   // +면 본인 기준 왼쪽
+      var lip=Math.hypot(u1.x-u2.x,u1.y-u2.y)/iod;
+      if(S.live){A.push(tsVideo,open,lat,lip);if(A.justChewed)S.pulse=1}
+      // 하관 표시
+      ctx.beginPath();
+      OVAL.forEach(function(i,k){var p=P(i),x=ox+p.x*sc,y=oy+p.y*sc;if(k)ctx.lineTo(x,y);else ctx.moveTo(x,y)});
+      ctx.lineWidth=Math.max(2,w/180);ctx.strokeStyle='#7C93FF';ctx.stroke();
+      ctx.closePath();ctx.fillStyle='rgba(124,147,255,'+(0.14+0.3*S.pulse)+')';ctx.fill();
+      S.pulse*=0.8;
+      // 좌우를 나누는 거울선
+      var top=P(10);ctx.setLineDash([w/60,w/45]);ctx.beginPath();
+      ctx.moveTo(ox+top.x*sc,oy+top.y*sc);ctx.lineTo(ox+chin.x*sc,oy+chin.y*sc);ctx.stroke();ctx.setLineDash([]);
+    }
+    ctx.restore();
+    if(S.mode==='live'&&!S.live)drawGuide(!!lm);
+    if(S.live){
+      var el=Math.max(0,Math.floor(tsVideo-(A.t0===null?tsVideo:A.t0)));
+      if(S.mode==='live')el=Math.floor((Date.now()-S.startTs)/1000);
+      $('#timer').textContent=two(Math.floor(el/60))+':'+two(el%60);
+      $('#cN').textContent=A.chews;$('#cL').textContent=A.L;$('#cR').textContent=A.R;
+      if(S.mode==='live')msg(lm?'턱 움직임을 따라가고 있어요':'얼굴이 안 보여요. 화면 안으로 들어와 주세요');
+    }else if(S.mode==='live'){
+      msg(lm?'좋아요. 촬영 시작을 눌러 주세요':'얼굴을 점선 안에 맞춰 주세요');
+    }
+  }
+
+  function resetUI(){
+    $('#cam').classList.remove('live');$('#prog').hidden=true;
+    $('#timer').textContent='00:00';$('#cN').textContent=$('#cL').textContent=$('#cR').textContent='0';
+    var b=$('#recBtn');b.textContent='촬영 시작';b.className='btn';b.hidden=true;b.disabled=true;
+    $('#pickLabel').hidden=false;$('#shootLabel').hidden=false;
+    $('#recHelp').textContent='휴대폰을 세워 두고 턱까지 보이게 찍어 주세요. 찍고 나면 바로 분석해요.';
+  }
+  function stopCamera(){
+    cancelAnimationFrame(S.raf);S.live=false;
+    if(S.stream){S.stream.getTracks().forEach(function(t){t.stop()});S.stream=null}
+    try{video.pause()}catch(e){}
+    video.srcObject=null;
+    if(S.url){URL.revokeObjectURL(S.url);S.url=null;video.removeAttribute('src');video.load()}
+    if(S.wake){try{S.wake.release()}catch(e){}S.wake=null}
+    S.mode=null;$('#analyze').hidden=true;$('#perm').hidden=true;
+  }
+  var asked=false;
+  function enterRecord(){
+    resetUI();fit();ctx.clearRect(0,0,canvas.width,canvas.height);drawGuide(false);
+    msg('식사하는 영상을 찍으면 바로 분석해요');
+    if(cameraAllowed())startCamera();
+  }
+  function noLive(){
+    // 이 화면에서는 실시간 카메라를 쓸 수 없음 → 휴대폰 카메라로 찍은 영상을 받아 분석
+    $('#recBtn').hidden=true;$('#shootLabel').hidden=false;msg('식사하는 영상을 찍으면 바로 분석해요');
+  }
+  $('#permOk').onclick=function(){asked=true;$('#perm').hidden=true;startCamera()};
+  $('#permNo').onclick=function(){$('#perm').hidden=true;msg('찍어 둔 영상을 골라도 분석할 수 있어요')};
+
+  function startCamera(){
+    navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false}).then(function(stream){
+      if(!$('#record').classList.contains('on')||S.mode==='file'){stream.getTracks().forEach(function(t){t.stop()});return}
+      S.stream=stream;S.mode='live';video.srcObject=stream;$('#recBtn').hidden=false;$('#shootLabel').hidden=true;
+      return video.play().then(function(){
+        msg('얼굴 인식 도구를 불러오고 있어요');
+        loop();
+        return loadModel().then(function(){$('#recBtn').disabled=false},function(){
+          msg('얼굴 인식 도구를 불러오지 못했어요. 인터넷 연결을 확인하고 다시 열어 주세요');
+        });
+      });
+    }).catch(function(){if(S.mode!=='file')noLive()});
+  }
+  function loop(){
+    S.raf=requestAnimationFrame(loop);
+    if(S.mode==='live')frame(performance.now()/1000);
+  }
+  $('#recBtn').onclick=function(){
+    if(S.mode!=='live')return;
+    if(!S.live){
+      A.reset();S.live=true;S.startTs=Date.now();
+      $('#cam').classList.add('live');$('#pickLabel').hidden=true;
+      this.textContent='식사 끝 · 촬영 종료';this.className='btn stop';
+      $('#recHelp').textContent='식사를 마치면 아래 버튼을 눌러 주세요. 화면을 켜 둔 채로 두세요.';
+      if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){S.wake=w},function(){});
+    }else{
+      var end=Date.now();finish(S.startTs,end,Math.round((end-S.startTs)/1000));
+    }
+  };
+
+  /* ── 찍은 영상 분석 ── */
+  function analyzeFile(file){
+    if(!file)return;
+    stopCamera();resetUI();
+    S.mode='file';S.file=file;
+    $('#recBtn').hidden=true;$('#pickLabel').hidden=true;$('#shootLabel').hidden=true;
+    $('#analyze').hidden=false;$('#analyzeMsg').textContent='얼굴 인식 도구를 불러오고 있어요';
+    loadModel().then(function(){
+      S.url=URL.createObjectURL(file);video.src=S.url;video.muted=true;
+      return new Promise(function(ok,no){video.onloadedmetadata=ok;video.onerror=function(){no(new Error('video'))}});
+    }).then(function(){
+      $('#analyze').hidden=true;
+      A.reset();S.live=true;$('#cam').classList.add('live');$('#prog').hidden=false;
+      msg('영상을 빠르게 돌려 보며 씹는 횟수를 세고 있어요');
+      $('#recHelp').textContent='분석이 끝날 때까지 이 화면을 켜 두세요.';
+      video.playbackRate=2;
+      var done=false;
+      function end(){
+        if(done)return;done=true;
+        var dur=isFinite(video.duration)?video.duration:(A.tLast||0);
+        var endTs=file.lastModified||Date.now();
+        finish(endTs-Math.round(dur*1000),endTs,Math.round(dur));
+      }
+      video.onended=end;
+      function step(now,meta){
+        if(done||S.mode!=='file')return;
+        var t=meta&&meta.mediaTime!=null?meta.mediaTime:video.currentTime;
+        frame(t);
+        if(isFinite(video.duration)&&video.duration>0)$('#prog i').style.width=Math.min(100,t/video.duration*100)+'%';
+        if(video.ended){end();return}
+        if(video.requestVideoFrameCallback)video.requestVideoFrameCallback(step);else S.raf=requestAnimationFrame(function(){step()});
+      }
+      step();
+      return video.play();
+    }).catch(function(e){
+      $('#analyze').hidden=true;S.mode=null;S.live=false;resetUI();
+      msg(e&&e.message==='video'?'이 영상은 열 수 없어요. 다른 영상을 골라 주세요':'얼굴 인식 도구를 불러오지 못했어요. 다시 시도해 주세요');
+      $('#recHelp').textContent='오류 내용: '+String(e&&e.message||e).slice(0,140);
+    });
+  }
+  $('#pick').onchange=function(){analyzeFile(this.files[0]);this.value=''};
+  $('#shoot').onchange=function(){analyzeFile(this.files[0]);this.value=''};
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden&&S.mode==='file'&&!video.paused)video.pause();
+    else if(!document.hidden&&S.mode==='file'&&video.paused&&!video.ended)video.play().catch(function(){});
+  });
+
+  window.__E={records:function(){return records},go:go};
+  renderHome();
+})();
+</script>
+
+</body>
+</html>
